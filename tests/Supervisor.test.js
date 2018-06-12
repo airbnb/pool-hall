@@ -1,34 +1,8 @@
-import EventEmitter from 'events';
 import assert from 'assert';
 import Supervisor from '../src/internal/Supervisor';
-
+import { fork } from './support';
 
 describe('PoolHall Supervisor', () => {
-  let processIds = 0;
-
-  class WorkerProcess extends EventEmitter {
-    constructor(forkArgs) {
-      super();
-      this.connected = true;
-
-      processIds += 1;
-
-      this.processId = processIds;
-      this.forkArgs = forkArgs;
-      this.exitCode = null;
-      this.signalCode = null;
-      this.sentMessages = [];
-    }
-
-    send(...args) {
-      this.sentMessages.push([...args]);
-    }
-  }
-
-  function fork(program, args, options) {
-    return new WorkerProcess({ program, args, options });
-  }
-
   describe('configure', () => {
     let supervisor;
 
@@ -262,84 +236,6 @@ describe('PoolHall Supervisor', () => {
             const lastMessage = worker.process.sentMessages.pop()[0];
             assert.equal(lastMessage.act, 'healthy');
           });
-        });
-      });
-    });
-
-    describe('worker heartbeat', () => {
-      const now = process.hrtime();
-      const NS_IN_SEC = 1e9;
-
-      function mockHrtime(past) {
-        if (typeof past === 'undefined') {
-          return now;
-        }
-        const pastNano = (past[0] * NS_IN_SEC) + past[1];
-        const nowNano = (now[0] * NS_IN_SEC) + now[1];
-        const diffNano = nowNano - pastNano;
-
-        const diffHrSec = Math.floor(diffNano / NS_IN_SEC);
-        const diffHrNano = diffNano - (diffHrSec * NS_IN_SEC);
-
-        return [diffHrSec, diffHrNano];
-      }
-
-      process.hrtime = jest.fn(mockHrtime);
-
-      it('records heartbeat', () => {
-        supervisor.start();
-        const [strId, worker] = Object.entries(supervisor.workers)[0];
-        worker.emit('heartbeat');
-        assert.equal(supervisor.heartbeatTimestamps[strId], now);
-      });
-
-      it('installs timer for heartbeat monitoring', (done) => {
-        supervisor.start();
-        supervisor.once('workerAllUp', () => {
-          assert.notStrictEqual(supervisor.heartbeatTimeout, null);
-          done();
-        });
-        Object.values(supervisor.workers).forEach((worker) => {
-          worker.emit('heartbeat');
-          worker.emit('up');
-        });
-      });
-
-      it('reports stalled workers', (done) => {
-        supervisor.start();
-        const strId = Object.keys(supervisor.workers)[0];
-        supervisor.heartbeatStartedAt = now; // timer won't be installed immediately
-        supervisor.heartbeatTimestamps[strId] = [now[0] - 10, now[1]];
-        supervisor.once('workerStall', (workerId) => {
-          assert.equal(workerId, strId);
-          done();
-        });
-        supervisor.monitorHeartbeat();
-      });
-
-      it('does not report workers not stalled', () => {
-        supervisor.start();
-        supervisor.heartbeatStartedAt = now;
-        Object.keys(supervisor.workers)
-          .forEach((strId) => {
-            supervisor.heartbeatTimestamps[strId] = now;
-          });
-        supervisor.once('workerStall', () => {
-          assert.fail();
-        });
-        supervisor.monitorHeartbeat();
-      });
-
-      it('reports heartbeat delta since second heartbeat', (done) => {
-        supervisor.start();
-        supervisor.heartbeatStartedAt = now;
-        supervisor.once('info:workerHeartbeatDelta', () => done());
-        Object.values(supervisor.workers).forEach((worker) => {
-          worker.emit('heartbeat');
-          worker.emit('up');
-        });
-        Object.values(supervisor.workers).forEach((worker) => {
-          worker.emit('heartbeat');
         });
       });
     });

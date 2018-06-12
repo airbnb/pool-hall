@@ -1,22 +1,8 @@
-import EventEmitter from 'events';
 import assert from 'assert';
 import Worker from '../src/internal/Worker';
-
-jest.useFakeTimers();
+import { WorkerWorkerProcess as WorkerProcess } from './support';
 
 describe('PoolHall Worker', () => {
-  class WorkerProcess extends EventEmitter {
-    constructor() {
-      super();
-      this.connected = true;
-      this.sentMessages = [];
-    }
-
-    send(...args) {
-      this.sentMessages.push([...args]);
-    }
-  }
-
   let worker;
 
   beforeEach(() => {
@@ -42,13 +28,6 @@ describe('PoolHall Worker', () => {
       });
 
       worker.process.emit('message', { poolHallInternal: true, act: 'healthy' });
-    });
-
-    it('sends heartbeat', () => {
-      worker.ready();
-      jest.runOnlyPendingTimers();
-      const heartbeats = worker.process.sentMessages.filter(msg => msg[0].act === 'heartbeat');
-      assert.equal(heartbeats.length, 2); // once when ready, once in scheduled heartbeat
     });
 
     it('sets unhealthy', (done) => {
