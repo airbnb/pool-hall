@@ -1,0 +1,34 @@
+{
+  "name": "pool-hall",
+  "version": "0.0.1",
+  "description": "Process supervisor",
+  "author": "Ben Hughes <ben.hughes@airbnb.com",
+  "repository": "airbnb/pool-hall",
+  "homepage": "https://github.com/airbnb/pool-hall#readme",
+  "bugs": "https://github.com/airbnb/pool-hall/issues",
+  "main": "dist/index",
+  "license": "MIT",
+  "scripts": {
+    "prebuild": "npm run clean",
+    "build": "babel src --out-dir dist",
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test:only": "jest",
+    "test": "npm run test:only",
+    "test:watch": "npm run test:only -- --watchAll",
+    "clean": "rimraf dist",
+    "prepublish": "safe-publish-latest && npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-plugin-transform-replace-object-assign": "^0.2.1",
+    "babel-preset-airbnb": "^2.4.0",
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.12.0",
+    "jest": "^23.1.0",
+    "rimraf": "^2.6.2",
+    "safe-publish-latest": "^1.1.1"
+  }
+}
