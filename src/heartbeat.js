@@ -7,8 +7,8 @@ const DEFAULT_SETTINGS = {
   stallTolerance: 5000,
 };
 
-function hrtimeToMilliseconds(hrtime) {
-  return Math.floor((hrtime[0] * 1e3) + (hrtime[1] / 1e6));
+function hrtimeToMilliseconds([seconds, nanoseconds]) {
+  return Math.floor((seconds * 1e3) + (nanoseconds / 1e6));
 }
 
 class HeartbeatMonitor extends EventEmitter {
@@ -23,7 +23,6 @@ class HeartbeatMonitor extends EventEmitter {
     this.heartbeatStartedAt = null;
     this.timestamps = {};
 
-    this.recordHeartbeat = this.recordHeartbeat.bind(this);
     this.start = this.start.bind(this);
     this.monitorHeartbeat = this.monitorHeartbeat.bind(this);
   }
