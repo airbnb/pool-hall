@@ -112,6 +112,27 @@ describe('heartbeat', () => {
         monitor.monitorHeartbeat();
       });
 
+      it('reports stalled workers from timer', (done) => {
+        jest.useFakeTimers();
+        supervisor.start();
+        const strId = Object.keys(supervisor.workers)[0];
+
+        supervisor.once('workerAllUp', () => {
+          monitor.timestamps[strId] = [now[0] - 10, now[1]];
+        });
+
+        monitor.once('workerStall', (workerId) => {
+          assert.equal(workerId, strId);
+          done();
+        });
+
+        Object.values(supervisor.workers).forEach((worker) => {
+          worker.emit('message', { act: 'poolHallHeartbeat' });
+          worker.emit('up');
+        });
+        setImmediate(jest.runOnlyPendingTimers);
+      });
+
       it('reports heartbeat delta since second heartbeat', (done) => {
         supervisor.start();
         monitor.heartbeatStartedAt = now;
