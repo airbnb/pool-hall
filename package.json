@@ -1,6 +1,6 @@
 {
   "name": "pool-hall",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Process supervisor",
   "author": "Ben Hughes <ben.hughes@airbnb.com",
   "repository": "airbnb/pool-hall",
@@ -22,7 +22,6 @@
   "dependencies": {},
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-plugin-transform-replace-object-assign": "^0.2.1",
     "babel-preset-airbnb": "^2.4.0",
     "eslint": "^4.19.1",
     "eslint-config-airbnb-base": "^12.1.0",
