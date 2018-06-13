@@ -1,4 +1,4 @@
-import { nextTick, env } from 'process';
+import { nextTick } from 'process';
 
 import BaseWorker from './BaseWorker';
 
@@ -27,25 +27,12 @@ export default class Worker extends BaseWorker {
 
     this.once('disconnect', () => this.shutdown());
     this.once('shutdown', () => this.shutdown());
-
-    this.heartbeat = this.heartbeat.bind(this);
-    this.heartbeatTimeout = null;
-    this.heartbeatInterval = parseInt(env.POOL_HALL_HEARTBEAT_INTERVAL, 10);
   }
 
   ready() {
     this.state = 'up';
-    this.heartbeat();
+    this.emit('ready');
     this.send({ poolHallInternal: true, act: 'ready' });
-  }
-
-  heartbeat() {
-    if (this.heartbeatTimeout !== null) {
-      clearTimeout(this.heartbeatTimeout);
-    }
-    this.send({ poolHallInternal: true, act: 'heartbeat' });
-    this.heartbeatTimeout = setTimeout(this.heartbeat, this.heartbeatInterval);
-    this.heartbeatTimeout.unref();
   }
 
   shutdown() {

@@ -1,16 +1,10 @@
 import EventEmitter from 'events';
 import BaseWorker from './BaseWorker';
 
-function hrtimeToMilliseconds(hrtime) {
-  return Math.floor((hrtime[0] * 1e3) + (hrtime[1] / 1e6));
-}
-
 function workerInternalMessageHandler(worker, message) {
   if (message.act === 'ready') {
     worker.state = 'up'; // eslint-disable-line no-param-reassign
     worker.emit('up');
-  } else if (message.act === 'heartbeat') {
-    worker.emit('heartbeat');
   }
 }
 
@@ -39,9 +33,6 @@ function raceTo(promise, ms, onTimeout) {
 const DEFAULT_SETTINGS = {
   gentleStopTimeout: 5000,
   killTimeout: 2000,
-  heartbeatWorkerInterval: 500,
-  heartbeatMonitorInterval: 1000,
-  heartbeatStallTolerance: 5000,
 };
 
 export default class Supervisor extends EventEmitter {
@@ -55,18 +46,11 @@ export default class Supervisor extends EventEmitter {
     this.workers = {};
     this.settings = {};
     this.closing = false;
-    this.heartbeatTimestamps = {};
 
     this.setPoolHealth = this.setPoolHealth.bind(this);
 
-    this.recordHeartbeat = this.recordHeartbeat.bind(this);
-    this.monitorHeartbeat = this.monitorHeartbeat.bind(this);
-    this.heartbeatTimeout = null;
-    this.heartbeatStartedAt = null;
-
     this.on('workerUp', this.setPoolHealth);
     this.on('workerDown', this.setPoolHealth);
-    this.on('workerHeartbeat', this.recordHeartbeat);
   }
 
   configure(settings, baseSettings) {
@@ -154,7 +138,6 @@ export default class Supervisor extends EventEmitter {
       ...this.settings.env,
       ...this.settings.workerEnv(id),
       POOL_HALL_ID: `${id}`,
-      POOL_HALL_HEARTBEAT_INTERVAL: `${this.settings.heartbeatWorkerInterval}`,
     };
 
     // TODO: handle debug/inspect args
@@ -188,7 +171,7 @@ export default class Supervisor extends EventEmitter {
       worker.on('down', info => this.emit('workerDown', strId, info));
       worker.on('up', () => this.emit('workerUp', strId));
       worker.on('terminated', () => this.emit('workerTerminated', strId));
-      worker.on('heartbeat', () => this.emit('workerHeartbeat', strId));
+      worker.on('message', msg => this.emit('workerMessage', strId, msg));
 
       const readyPromise = new Promise((resolve) => {
         worker.once('up', () => resolve());
@@ -199,12 +182,6 @@ export default class Supervisor extends EventEmitter {
     }
 
     Promise.all(workerReadyPromises).then(() => {
-      this.heartbeatStartedAt = process.hrtime();
-      this.heartbeatTimeout = setTimeout(
-        this.monitorHeartbeat,
-        this.settings.heartbeatMonitorInterval,
-      );
-      this.heartbeatTimeout.unref();
       this.emit('workerAllUp');
     });
   }
@@ -251,37 +228,5 @@ export default class Supervisor extends EventEmitter {
     } else {
       this.internalSend({ act: 'unhealthy' });
     }
-  }
-
-  recordHeartbeat(workerId) {
-    const past = this.heartbeatTimestamps[workerId] || this.heartbeatStartedAt;
-    if (past !== null) {
-      this.emit(
-        'info:workerHeartbeatDelta',
-        workerId,
-        hrtimeToMilliseconds(process.hrtime(past)),
-      );
-    }
-    this.heartbeatTimestamps[workerId] = process.hrtime();
-  }
-
-  monitorHeartbeat() {
-    Object.entries(this.workers)
-      // eslint-disable-next-line no-unused-vars
-      .filter(([_, worker]) => !worker.isDead()).forEach(([workerId, _]) => {
-        const workerHeartbeatTimestamp =
-          this.heartbeatTimestamps[workerId] || this.heartbeatStartedAt;
-        const heartbeatDelta = hrtimeToMilliseconds(process.hrtime(workerHeartbeatTimestamp));
-        if (heartbeatDelta >= this.settings.heartbeatStallTolerance) {
-          this.emit('workerStall', workerId);
-          this.emit('info:workerHeartbeatDelta', workerId, heartbeatDelta);
-        }
-      });
-
-    this.heartbeatTimeout = setTimeout(
-      this.monitorHeartbeat,
-      this.settings.heartbeatMonitorInterval,
-    );
-    this.heartbeatTimeout.unref();
   }
 }
