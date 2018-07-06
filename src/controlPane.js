@@ -23,8 +23,7 @@ function startControlPane(pool, { port = DEFAULT_SETTINGS.port, panes = [] }) {
  */
 export default function controlPane(pool, settings = {}) {
   if (pool.isSupervisor) {
-    const control = startControlPane(pool, settings);
-    return control;
+    return startControlPane(pool, settings);
   }
   return null;
 }
