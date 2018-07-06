@@ -19,7 +19,9 @@
     "clean": "rimraf dist",
     "prepublish": "safe-publish-latest && npm run build"
   },
-  "dependencies": {},
+  "dependencies": {
+    "express": "^4.16.3"
+  },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-airbnb": "^2.4.0",
