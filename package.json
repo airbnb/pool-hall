@@ -1,6 +1,6 @@
 {
   "name": "pool-hall",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Process supervisor",
   "author": "Ben Hughes <ben.hughes@airbnb.com",
   "repository": "airbnb/pool-hall",
