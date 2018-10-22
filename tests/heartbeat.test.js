@@ -83,12 +83,15 @@ describe('heartbeat', () => {
         });
         Object.values(supervisor.workers).forEach((worker) => {
           worker.emit('message', { act: 'poolHallHeartbeat' });
-          worker.emit('up');
+          worker.process.emit('message', { poolHallInternal: true, act: 'ready' });
         });
       });
 
       it('reports stalled workers', (done) => {
         supervisor.start();
+        Object.values(supervisor.workers).forEach((worker) => {
+          worker.state = 'up'; // eslint-disable-line no-param-reassign
+        });
         const strId = Object.keys(supervisor.workers)[0];
         monitor.heartbeatStartedAt = now; // timer won't be installed immediately
         monitor.timestamps[strId] = [now[0] - 10, now[1]];
@@ -99,9 +102,26 @@ describe('heartbeat', () => {
         monitor.monitorHeartbeat();
       });
 
+      it('does not report down workers as stalled', () => {
+        supervisor.start();
+        Object.values(supervisor.workers).forEach((worker) => {
+          worker.state = 'down'; // eslint-disable-line no-param-reassign
+        });
+        const strId = Object.keys(supervisor.workers)[0];
+        monitor.heartbeatStartedAt = now; // timer won't be installed immediately
+        monitor.timestamps[strId] = [now[0] - 10, now[1]];
+        monitor.once('workerStall', () => {
+          assert.fail();
+        });
+        monitor.monitorHeartbeat();
+      });
+
       it('does not report workers not stalled', () => {
         supervisor.start();
         monitor.heartbeatStartedAt = now;
+        Object.values(supervisor.workers).forEach((worker) => {
+          worker.state = 'up'; // eslint-disable-line no-param-reassign
+        });
         Object.keys(supervisor.workers)
           .forEach((strId) => {
             monitor.timestamps[strId] = now;
@@ -128,7 +148,7 @@ describe('heartbeat', () => {
 
         Object.values(supervisor.workers).forEach((worker) => {
           worker.emit('message', { act: 'poolHallHeartbeat' });
-          worker.emit('up');
+          worker.process.emit('message', { poolHallInternal: true, act: 'ready' });
         });
         setImmediate(jest.runOnlyPendingTimers);
       });
@@ -139,10 +159,32 @@ describe('heartbeat', () => {
         monitor.once('info:workerHeartbeatDelta', () => done());
         Object.values(supervisor.workers).forEach((worker) => {
           worker.emit('message', { act: 'poolHallHeartbeat' });
-          worker.emit('up');
+          worker.process.emit('message', { poolHallInternal: true, act: 'ready' });
         });
         Object.values(supervisor.workers).forEach((worker) => {
           worker.emit('message', { act: 'poolHallHeartbeat' });
+        });
+      });
+
+      it('clears heartbeat timestamp on workerDown', () => {
+        supervisor.start();
+        monitor.start();
+
+        Object.values(supervisor.workers).forEach((worker) => {
+          worker.emit('message', { act: 'poolHallHeartbeat' });
+          worker.process.emit('message', { poolHallInternal: true, act: 'ready' });
+        });
+
+        Object.keys(supervisor.workers).forEach((workerId) => {
+          assert(monitor.timestamps[workerId] != null);
+        });
+
+        Object.values(supervisor.workers).forEach((worker) => {
+          worker.emit('down');
+        });
+
+        Object.keys(supervisor.workers).forEach((workerId) => {
+          assert.equal(monitor.timestamps[workerId], null);
         });
       });
     });
