@@ -24,13 +24,14 @@ class HeartbeatMonitor extends EventEmitter {
     this.timestamps = {};
 
     this.start = this.start.bind(this);
+    this.clearHeartbeatOnWorkerDown = this.clearHeartbeatOnWorkerDown.bind(this);
     this.monitorHeartbeat = this.monitorHeartbeat.bind(this);
   }
 
   recordHeartbeat(workerId) {
-    const past = this.timestamps[workerId] || this.heartbeatStartedAt;
+    const past = this.timestamps[workerId];
 
-    if (past !== null) {
+    if (past != null) {
       this.emit(
         'info:workerHeartbeatDelta',
         workerId,
@@ -40,8 +41,14 @@ class HeartbeatMonitor extends EventEmitter {
     this.timestamps[workerId] = process.hrtime();
   }
 
+  clearHeartbeatOnWorkerDown(workerId) {
+    this.timestamps[workerId] = null;
+  }
+
   start() {
     this.heartbeatStartedAt = process.hrtime();
+
+    this.supervisor.on('workerDown', this.clearHeartbeatOnWorkerDown);
 
     this.monitorHeartbeat();
   }
@@ -50,6 +57,8 @@ class HeartbeatMonitor extends EventEmitter {
     if (this.monitorHeartbeatTimeout) {
       clearTimeout(this.monitorHeartbeatTimeout);
     }
+
+    this.supervisor.removeListener('workerDown', this.clearHeartbeatOnWorkerDown);
   }
 
   monitorHeartbeat() {
@@ -58,13 +67,17 @@ class HeartbeatMonitor extends EventEmitter {
     }
 
     Object.entries(this.supervisor.workers)
-      .filter(([, worker]) => !worker.isDead()).forEach(([workerId]) => {
-        const ts = this.timestamps[workerId] || this.heartbeatStartAt;
-        const delta = hrtimeToMilliseconds(process.hrtime(ts));
+      .filter(([, worker]) => !worker.isDead())
+      .filter(([, worker]) => worker.state === 'up')
+      .forEach(([workerId]) => {
+        const ts = this.timestamps[workerId];
+        if (ts != null) {
+          const delta = hrtimeToMilliseconds(process.hrtime(ts));
 
-        if (delta > this.stallTolerance) {
-          this.emit('workerStall', workerId);
-          this.emit('info:workerHeartbeatDelta', workerId, delta);
+          if (delta > this.stallTolerance) {
+            this.emit('workerStall', workerId);
+            this.emit('info:workerHeartbeatDelta', workerId, delta);
+          }
         }
       });
 
