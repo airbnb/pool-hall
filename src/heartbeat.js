@@ -107,7 +107,7 @@ export function workerHeartbeat(worker, { workerInterval }) {
 
   function heartbeatFn() {
     if (obj.heartbeatTimeout) {
-      clearTimeout(this.heartbeatTimeout);
+      clearTimeout(obj.heartbeatTimeout);
     }
     worker.send({ act: 'poolHallHeartbeat' });
     obj.heartbeatTimeout = setTimeout(heartbeatFn, interval);
